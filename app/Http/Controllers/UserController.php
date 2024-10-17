@@ -22,12 +22,14 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
+            'role' => 'in:admin,user,manager,customer,cashier',
         ]);
 
         $user = User::create([
             'name' => $validatedData['name'],
             'email' => $validatedData['email'],
             'password' => Hash::make($validatedData['password']),
+            'role' => $request->role ?? 'user',
         ]);
 
         return response()->json($user, 201);
@@ -58,6 +60,7 @@ class UserController extends Controller
             'name' => 'sometimes|string|max:255',
             'email' => 'sometimes|string|email|max:255|unique:users,email,' . $id,
             'password' => 'sometimes|string|min:8',
+            'role' => 'in:admin,user,manager,customer,cashier',
         ]);
 
         if ($request->has('name')) {
@@ -70,6 +73,10 @@ class UserController extends Controller
 
         if ($request->has('password')) {
             $user->password = Hash::make($validatedData['password']);
+        }
+
+        if ($request->has('role')) {
+            $user->role = $validatedData['role'];
         }
 
         $user->save();

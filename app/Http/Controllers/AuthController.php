@@ -4,61 +4,69 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
+use Tymon\JWTAuth\Facades\JWTAuth;
+use Tymon\JWTAuth\Exceptions\JWTException;
+use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
-    // Registro de nuevos usuarios
+    // Registro de usuarios
     public function register(Request $request)
     {
-        $validatedData = $request->validate([
+        $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
+            'role' => 'in:admin,user,manager,customer,cashier', // Roles permitidos
         ]);
 
-        $user = User::create([
-            'name' => $validatedData['name'],
-            'email' => $validatedData['email'],
-            'password' => Hash::make($validatedData['password']),
-        ]);
-
-        return response()->json($user, 201);
-    }
-
-    // Inicio de sesión
-    public function login(Request $request)
-    {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
-
-        $user = User::where('email', $request->email)->first();
-
-        if (! $user || ! Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['Las credenciales son incorrectas.'],
-            ]);
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 400);
         }
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'role' => $request->role ?? 'user', // Rol predeterminado es 'user'
+        ]);
 
-        return response()->json(['access_token' => $token, 'token_type' => 'Bearer']);
+        $token = JWTAuth::fromUser($user);
+
+        return response()->json([
+            'user' => $user,
+            'token' => $token,
+        ], 201);
     }
 
-    // Cierre de sesión
-    public function logout(Request $request)
+    // Iniciar sesión
+    public function login(Request $request)
     {
-        $request->user()->tokens()->delete();
+        $credentials = $request->only('email', 'password');
 
-        return response()->json(['message' => 'Sesión cerrada con éxito']);
+        try {
+            if (! $token = JWTAuth::attempt($credentials)) {
+                return response()->json(['error' => 'Credenciales inválidas'], 401);
+            }
+        } catch (JWTException $e) {
+            return response()->json(['error' => 'No se pudo crear el token'], 500);
+        }
+
+        return response()->json(['token' => $token], 200);
     }
 
-    // Obtener el perfil del usuario autenticado
-    public function profile(Request $request)
+    // Cerrar sesión
+    public function logout()
     {
-        return response()->json($request->user());
+        Auth::logout();
+        return response()->json(['message' => 'Cierre de sesión exitoso']);
+    }
+
+    // Obtener el usuario autenticado
+    public function me()
+    {
+        return response()->json(Auth::user());
     }
 }
