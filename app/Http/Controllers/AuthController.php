@@ -23,14 +23,14 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json($validator->errors(), 400);
+            return response()->json($validator->errors(), 422);
         }
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role' => $request->role ?? 'user', // Rol predeterminado es 'user'
+            'role' => $request->role
         ]);
 
         $token = JWTAuth::fromUser($user);
@@ -38,6 +38,7 @@ class AuthController extends Controller
         return response()->json([
             'user' => $user,
             'token' => $token,
+            'role' => $user->role,
         ], 201);
     }
 

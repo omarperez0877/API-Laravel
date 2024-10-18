@@ -29,7 +29,7 @@ class UserController extends Controller
             'name' => $validatedData['name'],
             'email' => $validatedData['email'],
             'password' => Hash::make($validatedData['password']),
-            'role' => $request->role ?? 'user',
+            'role' => $request->role ?? 'user',  // Asegura que el rol siempre tenga un valor
         ]);
 
         return response()->json($user, 201);
